@@ -1,0 +1,80 @@
+.App {
+  text-align: center;
+  margin-top: 10%;
+}
+
+input {
+  margin: 1%;
+  padding: 1%;
+  width: 30%;
+}
+
+button {
+  width: 32%;
+  padding: 1%;
+}
+
+.messaging {
+  position: fixed;
+  width: 100%;
+  top: 90%;
+}
+
+.messaging > input {
+  width: 60%;
+}
+
+.messaging > button {
+  width: 30%;
+}
+
+#error {
+  color: red;
+}
+
+#send {
+  width: 10%;
+}
+
+.message-container {
+  margin-bottom: 1.5%;
+}
+
+.message-content {
+  border-radius: 10px;
+  padding: 0.5%;
+  color: white;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.mine {
+  text-align: left;
+  margin-left: 1%;
+}
+
+.mine > .message-content {
+  background-color: blue;
+}
+
+.not-mine > .message-content {
+  background-color: green;
+}
+
+.not-mine {
+  text-align: right;
+  margin-right: 1%;
+}
+.sender {
+  font-size: smaller;
+}
+
+.messages {
+  overflow: scroll;
+  height: 70vh;
+}
+
+.receiver-selection {
+  width: 20%;
+  height: 50px;
+}

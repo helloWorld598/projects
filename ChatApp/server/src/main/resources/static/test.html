@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <script src="./socket-client/sockjs-client.js"></script>
+    <script src="./socket-client/stomp.js"></script>
+    <style>
+        textarea {
+            width: 500px;
+            height: 200px;
+        }
+    </style>
+</head>
+
+<body>
+    <textarea id="msg"></textarea><br>
+    <button id="sender">Send</button>
+
+    <br><br>
+
+    <textarea id="init"></textarea><br>
+    <button id="initialise">Initialise</button>
+
+    <section id="chat"></section>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
