@@ -1,6 +1,6 @@
 # Projects
 
-## ChessGame
+## Chess
 
 ChessApp is a full-stack application that allows players to play Chess against a friend on the same computer when offline, or play against another player connected to the server. The server was created using Express.js while the front-end was created using the ReactJs framework. ChessApp utilises sessions to save the user's session so they do not need to enter their name when connecting to the server. Furthermore, socket.io is used to carry user chess movers to opponents, facilitating an online experience.
 
