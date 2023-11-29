@@ -6,7 +6,11 @@ ChessApp is a full-stack application that allows players to play Chess against a
 
 ## ChatApp
 
-ChatApp is a full-stack application that enables all users in the server to send messages to one another in a chat room. Users are also able to send individual messages to users. The backend application was created using the Java Spring Boot Framework, while the front end was developed using the ReactJs framework. Furthermore, JSON Web Tokens are utilised within the application for authentication and to provide security to users. The server also stores information on a database using MongoDB atlas.
+ChatApp is a full-stack application that enables all users in the server to send messages to one another in a chat room. The backend application was created using the Java Spring Boot Framework, while the front end was developed using the ReactJs framework. Furthermore, JSON Web Tokens are utilised within the application to provide security when the user creates their accounts and authenticates themselves as their created account. The server also stores information on a database using MongoDB atlas.
 
 
-To run either application, start the server then run npm start in the directory of the client directories.
+To run either of the above applications, start the server then run npm start in the directory of the client directories.
+
+## Cards
+
+Cards is a game developed using Python and Pygame, a set of modules designed for creating video games. The game is based on the card game "Thirteens" and consists of the user playing against an AI bot that utilises the Minimax algorithm. To run this game, the only dependency required is pygame.
