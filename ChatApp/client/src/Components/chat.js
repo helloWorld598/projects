@@ -7,6 +7,8 @@ export default function Chat() {
     const [messages, setMessages] = React.useState([]);
     const [count, setCount] = React.useState(0);
     const [users, setUsers] = React.useState([]);
+    const [authorised, setAuthorised] = React.useState(true);
+
     
     const urlParams = new URLSearchParams(window.location.search);
     const token = localStorage.getItem("token");
@@ -26,8 +28,18 @@ export default function Chat() {
         fetch("/api/users/" + email, {
             headers: {"Authorization": "Bearer " + token}
         })
-            .then(res => res.json())
-            .then(data => setData(data));
+            .then(res => {
+                if (res.ok) {
+                    return res.json()
+                } 
+                else {
+                    return Promise.reject("Unauthorised");
+                }
+            })
+            .then(data => setData(data))
+            .catch(_ => {
+                setAuthorised(false);
+            });
     }, []);
 
     React.useEffect(() => {
@@ -75,21 +87,28 @@ export default function Chat() {
     }, [data]);
 
     return (
-        <div className="App">
-            <section className='messages' id='messages'>
-                {messages}
-            </section>
-            <section className='messaging'>
-                <select className='receiver-selection' id="selectedUser">
-                    <option value="" selected disabled>Select user to send private message</option>
-                    <option value="all">all</option>
-                    {users.map((item, _) => (
-                        item !== email && <option value={item}>{item}</option>
-                    ))}
-                </select>
-                <input placeholder='Send a message' id='msg' />
-                <button id='send'>Send</button>
-            </section>
-        </div>
+        authorised ? (
+            <div className="App">
+                <a style={{left: "3%", top: "4%", position: "absolute"}} href={"/update?user=" + email}>Update details</a>
+                <section className='messages' id='messages'>
+                    {messages}
+                </section>
+                <section className='messaging'>
+                    <select className='receiver-selection' id="selectedUser">
+                        <option value="" selected disabled>Select user to send private message</option>
+                        <option value="all">all</option>
+                        {users.map((item, _) => (
+                            item !== email && <option value={item}>{item}</option>
+                        ))}
+                    </select>
+                    <input placeholder='Send a message' id='msg' />
+                    <button id='send'>Send</button>
+                </section>
+            </div>
+        ) : (
+            <div className="App">
+                <h3>You are not authorised to access this page</h3>
+            </div>
+        )
     );
 }

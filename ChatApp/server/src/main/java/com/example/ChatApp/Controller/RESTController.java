@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,10 +43,14 @@ public class RESTController {
     }
 
     @PostMapping("/api/users/auth/register")
-    public void createUser(@RequestBody User user) {
+    public ResponseEntity<String> createUser(@RequestBody User user) {
         // users are registered and added to the database
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        repository.insert(user);
+        if (user.getPassword().length() >= 6) {
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+            repository.insert(user);
+            return ResponseEntity.ok("Success");
+        } 
+        return ResponseEntity.status(403).body("Bad Password");
     }
 
     @PostMapping("/api/users/auth/login")
@@ -65,18 +70,18 @@ public class RESTController {
     }
 
     @GetMapping(path = "/api/users/{email}")
-    public ResponseEntity<Optional<User>> getStudentByEmail(@PathVariable("email") String email,
+    public ResponseEntity<Object> getUserByEmail(@PathVariable("email") String email,
             HttpServletRequest request) {
         
         // Returns the user's information as identified by the email
         if (request.getSession().getAttribute("id").toString().equals(email)) {
             return ResponseEntity.ok(repository.findUserByEmail(email));
         }
-        return ResponseEntity.ok(null);
+        return ResponseEntity.status(403).body("Unauthorised");
     }
 
     @PutMapping(path = "/api/users/{email}")
-    public ResponseEntity<Object> updateStudentByEmail(@PathVariable("email") String email,
+    public ResponseEntity<Object> updateUserByEmail(@PathVariable("email") String email,
             @RequestBody User user, HttpServletRequest request) {
         
         // user's session must match the email described in the url path
@@ -86,19 +91,36 @@ public class RESTController {
             // updates the user of the email's informaion based on details in the request body
             if (current.isPresent()) {
                 if (user.getPassword() != null) {
-                    user.setPassword(passwordEncoder.encode(user.getPassword()));
-                } else {
-                    user.setPassword(current.get().getPassword());
+                    if (user.getPassword().length() >= 6)
+                        current.get().setPassword(passwordEncoder.encode(user.getPassword()));
+                    else
+                        return ResponseEntity.status(403).body("Bad Password");
                 }
-                user.setId(current.get().getId());
-                user.setCreated(current.get().getCreated());
+
+                if (user.getName() != null) {
+                    current.get().setName(user.getName());
+                }
+
+                if (user.getPhoneString() != null) {
+                    current.get().setPhoneString(user.getPhoneString());
+                }
+
                 // save the user's new details to the database
-                repository.save(user);
+                repository.save(current.get());
                 return ResponseEntity.ok("Success");
             }
         }
 
-        return ResponseEntity.ok(null);
+        return ResponseEntity.status(403).body("Update failed");
+    }
+
+    @DeleteMapping(path = "/api/users/{email}")
+    public ResponseEntity<Object> deleteUserByEmail(@PathVariable("email") String email, HttpServletRequest request) {
+        if (request.getSession().getAttribute("id").toString().equals(email)) {
+            repository.deleteUserByEmail(email);
+            return ResponseEntity.ok("Success");
+        }
+        return ResponseEntity.status(403).body("Delete failed");
     }
 
 }
