@@ -6,7 +6,7 @@ ChessApp is a full-stack application that allows players to play Chess against a
 
 ## ChatApp
 
-ChatApp is a full-stack application that enables all users in the server to send messages to one another in a chat room. The backend application was created using the Java Spring Boot Framework, while the front end was developed using the ReactJs framework. Furthermore, JSON Web Tokens are utilised within the application to provide security when the user creates their accounts and authenticates themselves as their created account. The server also stores information on a database using MongoDB atlas.
+ChatApp is a full-stack CRUD application that enables all users in the server to send messages to one another in a chat room. The backend application was created using the Java Spring Boot Framework, while the front end was developed using the ReactJs framework. Furthermore, JSON Web Tokens are utilised within the application to provide security when the user creates their accounts and authenticates themselves as their created account. Users can also update and delete their account details. The server also stores information on a database using MongoDB atlas.
 
 
 To run either of the above applications, start the server then run npm start in the directory of the client directories.
