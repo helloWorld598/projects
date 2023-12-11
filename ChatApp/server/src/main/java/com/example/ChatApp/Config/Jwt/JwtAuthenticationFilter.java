@@ -38,25 +38,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Extract the Authorization: Bearer header from a request to obtain
-        // the user's JWT token
+        // Extract the Authorization: Bearer header from a request to obtain the user's JWT token
         jwt = authHeader.substring(7);
         userEmail = jwtService.extractUsername(jwt);
 
         // if the user's email can be extracted and the user is not yet authenticated
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            // make a call using UserDetailsService to fetch the user's information from the database
+            // based on the email in the token, and will return a UserDetails object
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
             // Below code will check that the JWT provided is valid and will authenticate the user
             if (jwtService.isTokenValid(jwt, userDetails)) {
                 // when the client's token is found to be valid their session id is set to their email
                 request.getSession().setAttribute("id", userEmail);
-
+                // create authentication token containing credentials to be passed to SecurityContextHolder
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails,
                         null,
                         userDetails.getAuthorities());
                 authToken.setDetails(
                         new WebAuthenticationDetailsSource().buildDetails(request));
+                // if the user is valid update the SecurityContextHolder and set the user as authenticated
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             } 
             else {
