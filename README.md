@@ -11,10 +11,6 @@ ChatApp is a full-stack CRUD application that enables all users in the server to
 
 To run either of the above applications, start the server then run npm start in the directory of the client directories.
 
-## Cards
-
-Cards is a game developed using Python and Pygame, a set of modules designed for creating video games. The game is based on the card game "Thirteens" and consists of the user playing against an AI bot that utilises the Minimax algorithm. To run this game, the only dependency required is pygame.
-
 ## MazeSolver
 
 MazeSolver is an algorithm created for a Unversity Assignment which is a simulation of a robot navigating a maze without having prior knowledge of what is in the maze and where the exit to the maze will be. The algorithm can adapt to a number of situations including 90-degree turns, dead ends, and curved and slanted walls. The algorithm uses a left-hand wall-following technique, where the robot detects a wall on its left-hand sensor and follows the wall until it reaches an exit. Note: I am not the full author of all the code written in MazeSolver, especially when it comes to drawing the robot to the screen and collision detection, however, I fully authored the algorithm for solving the maze. The program requires SDL2 in order to run.
