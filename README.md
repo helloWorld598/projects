@@ -2,14 +2,16 @@
 
 ## Chess
 
-ChessApp is a full-stack application that allows players to play Chess against a friend on the same computer when offline, or play against another player connected to the server. The server was created using Express.js while the front-end was created using the ReactJs framework. ChessApp allows multiple users to connect to the server and the server will assign each user into pairs, where they will play online Chess. ChessApp utilises sessions to save the user's session so they do not need to enter their name when connecting to the server. Furthermore, socket.io is used to carry user chess movers to opponents, facilitating an online experience.
+ChessApp is a full-stack application that allows players to play Chess against a friend on the same computer when offline, or play against another player connected to the server. The server was created using Spring Boot while the client was created using React.js. ChessApp allows multiple users to connect to the server and the server will assign each user into pairs, where they will play online Chess. ChessApp utilises sessions to save the user's session so they do not need to enter their name when connecting to the server. Furthermore, Websockets is used to carry user chess movers to opponents, facilitating an online experience.
+
+To run this application, the compiled program can be found in the root directory of Chess as a .jar file. Run the .jar file and visit the website at localhost:8080.
 
 ## ChatApp
 
 ChatApp is a full-stack CRUD application that enables all users in the server to send messages to one another in a chat room. The backend application was created using the Java Spring Boot Framework, while the front end was developed using the ReactJs framework. Users can send messages to one another because of the server's use of Web Sockets. Furthermore, JSON Web Tokens are utilised within the application to authorise users to access the application after they have authenticated, hence providing security to the site. Users can also update and delete their account details. The server also stores information on a database using MongoDB atlas.
 
 
-To run either of the above applications, start the server then run npm start in the directory of the client directories.
+To run the Chat application, start the server then run npm start in the directory of the client directory.
 
 ## MazeSolver
 
