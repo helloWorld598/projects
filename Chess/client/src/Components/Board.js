@@ -5,6 +5,8 @@ import React from "react";
 
 // function deals with drawing the chess board on the screen
 export default function Board(props) {
+    
+    // displays the squares of the chess board onto the screen, excluding all pieces
     function createBoard() {
         const output = [];
 
@@ -13,6 +15,7 @@ export default function Board(props) {
                 // calculate the x and y positions of each square on the board
                 const right = parseInt(props.right) + (x * 100) + "px";
                 const down = parseInt(props.down) + (y * 100) + "px";
+                
                 var colour = "";
 
                 if (y % 2 === 0) {
@@ -51,8 +54,7 @@ export default function Board(props) {
     return (
         <section className="chess">
             {createBoard()}
-            <ChessPieces set={props.set} side={props.side} func={props.func} right={props.right} down={props.down} markers={props.markers} />
-            {props.promotions(props.set, props.side)}
+            <ChessPieces set={props.set} side={props.side} right={props.right} down={props.down} markers={props.markers} />
         </section>
     )
 }

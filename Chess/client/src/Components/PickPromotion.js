@@ -6,32 +6,11 @@ import whiteRook from "../assets/rookW.png";
 import blackRook from "../assets/rookB.png";
 import whiteQueen from "../assets/queenW.png";
 import blackQueen from "../assets/queenB.png";
-import { promotePawn } from "../Helper";
 import React from "react";
 
-// function will display a selection of pieces that the pawn can promote to
-// and will promote the pawn depending on which selection the user chooses
+// function will display a selection of pieces that the pawn can promote to and
+// will handle promotion of the pawn depending on which piece the user chooses
 export default function PickPromotion(props) {
-    React.useEffect(() => {
-        // promote the pawn to the piece the user has clicked on
-        var choices = document.querySelectorAll(".choice");
-        for (let choice of choices) {
-            choice.addEventListener("click", () => {
-                promotePawn(choice, props.set, props.coord, props.func);
-                props.changeTurn(false);
-            })
-        }
-
-        return () => {
-            var choices = document.querySelectorAll(".choice");
-            for (let choice of choices) {
-                choice.removeEventListener("click", () => {
-                    promotePawn(choice, props.set, props.coord, props.func);
-                })
-            }
-        }
-    }, []);
-
     return (
         <div className="selection" style={
             {

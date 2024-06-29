@@ -1,14 +1,14 @@
 import './App.css';
 import ChessGame from './Components/ChessGame';
 import Menu from './Components/Menu';
-import Wait from './Components/Wait';
-import { Route, Routes, BrowserRouter } from "react-router-dom"
+import { Route, Routes, BrowserRouter } from "react-router-dom";
+import React from "react";
 
+// function will route users to specific pages depending on the path in the url
 function App() {
-  // function will route users to specific pages depending on the path in the url
   
   return (
-    <BrowserRouter>
+    <BrowserRouter basename='/'>
       <Routes path="/">
 
         <Route index element={<Menu />} />
@@ -21,9 +21,7 @@ function App() {
             connected={false} />
         } />
 
-        <Route path='/wait' element={<Wait />} />
-
-        <Route path='/connected' element={
+        <Route path='/connect' element={
           <ChessGame
             x="50"
             y="200"

@@ -1,132 +1,70 @@
 import Header from './Header.js';
 import Board from './Board.js';
 import Marker from '../assets/marker.png'
-import fillBoard, { executeCastling, executeEnPassant, kingChecked, checkMate } from '../Helper';
 import PickPromotion from './PickPromotion';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Sidebar from './Sidebar';
-import io from 'socket.io-client-latest';
+import Wait from './Wait.js';
 
+// function deals with displaying the chess board onto the screen and associated functionality
 export default function App(props) {
-    const board = {};
-    const socket = io.connect(`http://${window.location.hostname}:3001`);
-    const [data, setData] = useState({});
     const [markers, setMarkers] = useState(new Array(8).fill(new Array(8).fill(false)));
     const [pieces, setPieces] = useState({});
-    const [selected, setSelected] = useState({});
-    const [disable, setDisable] = useState(false);
+    const [selected, setSelected] = useState([]);
     const xAdjust = props.x;
     const yAdjust = props.y;
     const [colourSide, setColour] = useState("");
-    const [opposite, setOpposite] = useState("");
-    const [turn, setTurn] = useState(colourSide === "white" ? true : false);
-    if (props.colour !== undefined && colourSide === "") {
-        setColour(props.colour);
-        setOpposite(props.colour === "white" ? "black" : "white");
-        setTurn(props.colour === "white" ? true : false)
-    }
+    const [turn, setTurn] = useState(true);
     const connected = props.connected;
-    const [conceded, setConceded] = useState(null);
+    const [username, setUsername] = useState(null);
+    const [opponent, setOpponent] = useState("");
+    const [whiteKingChecked, setWhiteKingChecked] = useState(false);
+    const [blackKingChecked, setBlackKingChecked] = useState(false);
+    const [whiteWin, setWhiteWin] = useState(null);
     const [offer, setOffer] = useState(false);
     const [drawn, setDrawn] = useState(null);
-    const [promoted, setPromoted] = useState(false);
+    const [promote, setPromote] = useState(false);
+    const [promoteMove, setPromoteMove] = useState({});
+    const [waiting, setWaiting] = useState(true);
+    const [conceded, setConcede] = useState(false);
+    const [messages, setMessages] = useState([]);
 
-    function coorToSquares(x, y) {
-        // convert the actual coordinates or a piece on the board to x and y values between 0 to 7
-        return [Math.floor((x - parseInt(xAdjust)) / 100), Math.floor((y - parseInt(yAdjust)) / 100)]
+    // effect to handle initial waiting state based on whether the user is playing online.
+    if (!connected && waiting) {
+        setWaiting(false);
     }
+    
+    const socket = useRef(null);
 
-    // checks whether or not a pawn can promote and if it can display the promotion bar
-    function checkPromotion(board, colourSide) {
-        for (let piece of Object.values(board)) {
-            if (piece.type === "pawn") {
-                if (colourSide === "white") {
-                    if (piece.colour === "white" && piece.top === 0) {
-                        setDisable(true);
-                        return <PickPromotion
-                            changeTurn={setDisable}
-                            side={piece.colour}
-                            x={piece.left * 100 + parseInt(xAdjust) + 75}
-                            y={piece.top * 100 + parseInt(yAdjust)}
-                            coord={piece.left + "," + piece.top}
-                            set={board}
-                            func={connected ? function (boardPieces) {
-                                setPieces(boardPieces);
-                                setPromoted(true);
-                            } : setPieces}
-                        />;
-                    }
-
-                    else if (piece.colour === "black" && piece.top === 7) {
-                        // if the player is playing online then the player does not need to see the
-                        // opponent's promotion bar
-                        if (connected) {
-                            setTurn(false);
-                        }
-
-                        else {
-                            setDisable(true);
-                            return <PickPromotion
-                                changeTurn={setDisable}
-                                side={piece.colour}
-                                x={piece.left * 100 + parseInt(xAdjust) + 75}
-                                y={1260 + parseInt(yAdjust) - (piece.top * 100)}
-                                coord={piece.left + "," + piece.top}
-                                set={board}
-                                func={setPieces}
-                            />;
-                        }
-                    }
-                }
-
-                else {
-                    if (piece.colour === "white" && piece.top === 7) {
-                        if (connected) {
-                            setTurn(false);
-                        }
-
-                        else {
-                            setDisable(true);
-                            return <PickPromotion
-                                changeTurn={setDisable}
-                                side={piece.colour}
-                                x={piece.left * 100 + parseInt(xAdjust) + 75}
-                                y={1260 + parseInt(yAdjust) - (piece.top * 100)}
-                                coord={piece.left + "," + piece.top}
-                                set={board}
-                                func={setPieces}
-                            />;
-                        }
-                    }
-
-                    else if (piece.colour === "black" && piece.top === 0) {
-                        setDisable(true);
-                        return <PickPromotion
-                            changeTurn={setDisable}
-                            side={piece.colour}
-                            x={piece.left * 100 + parseInt(xAdjust) + 75}
-                            y={piece.top * 100 + parseInt(yAdjust)}
-                            coord={piece.left + "," + piece.top}
-                            set={board}
-                            func={connected ? function (boardPieces) {
-                                setPieces(boardPieces);
-                                setPromoted(true);
-                            } : setPieces}
-                        />;
-                    }
-                }
-            }
+    // function to convert coordinates to chess squares.
+    function coorToSquares(x, y) {
+        // convert the raw coordinates on a chess board board to x and y values between 0 to 7
+        // for black pieces, the coordinates would need to be flipped.
+        if (colourSide === "white") {
+            return [Math.floor((x - parseInt(xAdjust)) / 100), Math.floor((y - parseInt(yAdjust)) / 100)]
+        }
+        else {
+            return [7 - Math.floor((x - parseInt(xAdjust)) / 100), 7 - Math.floor((y - parseInt(yAdjust)) / 100)]
         }
     }
 
+    // function to handle clicking on chess pieces or board squares.
     function pickObject(event) {
-        if (conceded === null && drawn === null) {
-            // determine whether the player has clicked on a piece which they want to move
-            if (event.target.className === "piece" && (selected.className === undefined || selected.id === event.target.id) && ((turn === true && event.target.id === colourSide) || (turn === false && event.target.id === opposite && connected === false)) && disable === false) {
-                setSelected(event.target);
+        const [x, y] = coorToSquares(parseInt(event.target.style.left), parseInt(event.target.style.top));
 
-                const [x, y] = coorToSquares(parseInt(event.target.style.left), parseInt(event.target.style.top));
-                // array of all the blue dots signifying valid moves that will be displayed
+        // determine whether the player has clicked on a piece which belongs to their side when it is their turn.
+        // for users playing online the user can only make a move when it is their assigned colour's turn to move
+        // but for players playing on the same computer, only pieces of the right colour are allowed to move.
+        if (event.target.className === "piece" && selected[0] === undefined && !promote) {
+            if ((pieces[x + "," + y].white === turn && !connected) || 
+                (
+                    (turn && connected && ((pieces[x + "," + y].white && colourSide === "white") || 
+                    (!pieces[x + "," + y].white && colourSide === "black"))
+                )
+            )) {
+                setSelected([x, y]);
+
+                // array of all the blue dots signifying valid moves that will be displayed.
                 const newArr = [
                     [false, false, false, false, false, false, false, false],
                     [false, false, false, false, false, false, false, false],
@@ -138,128 +76,84 @@ export default function App(props) {
                     [false, false, false, false, false, false, false, false]
                 ];
 
-                // display the markers indicating the valid moves for the piece that was pressed
-                if (pieces[[x, y]].moves !== undefined) {
-                    for (let move of pieces[[x, y]].moves) {
-                        newArr[move[1]][move[0]] = true;
+                // display the markers indicating the valid moves for the piece that was pressed.
+                if (pieces[x + "," + y] !== undefined) {
+                    if (pieces[x + "," + y].moves) {
+                        for (let move of pieces[x + "," + y].moves) {
+                            if (colourSide === "white")
+                                newArr[move.nextPos[1]][move.nextPos[0]] = true;
+                            else if (colourSide === "black")
+                                newArr[7 - move.nextPos[1]][7 - move.nextPos[0]] = true;
+                        }
+                        setMarkers(newArr);
                     }
-                    setMarkers(newArr);
-                }
-
-                // do the same but with special moves such as en passant
-                if (pieces[[x, y]].obscure !== undefined) {
-                    for (let move of pieces[[x, y]].obscure) {
-                        newArr[move[1]][move[0]] = true;
-                    }
-                    setMarkers(newArr);
                 }
             }
-
-            // this determines that the user has clicked a spot to move the piece or clicked on a piece to capture
-            else if ((event.target.className === "piece" && event.target.id !== selected.id) || (selected.className !== undefined && (pieces[coorToSquares(parseInt(event.target.style.left), parseInt(event.target.style.top))].type === undefined || pieces[coorToSquares(parseInt(event.target.style.left), parseInt(event.target.style.top))].colour !== pieces[coorToSquares(parseInt(selected.style.left), parseInt(selected.style.top))].colour)) || (event.target.className === "marker")) {
-                const [x, y] = coorToSquares(parseInt(event.target.style.left), parseInt(event.target.style.top));
-                const [prevX, prevY] = coorToSquares(parseInt(selected.style.left), parseInt(selected.style.top));
-                const moves = pieces[[prevX, prevY]].moves.map(val => val[0] + "," + val[1]);
-                var newPieces = findChecks(pieces);
-
-                // record the previous position of the piece if no recorded position has been recorded
-                // this attribute is used when determining when the player can perform en passant or castle
-                if (pieces[[prevX, prevY]].prev !== undefined) {
-                    pieces[[prevX, prevY]].prev = [prevX, prevY];
-                }
-
-                if (pieces[[prevX, prevY]].obscure !== undefined) {
-                    const stringArr = pieces[[prevX, prevY]].obscure.map(val => val[0] + "," + val[1]);
-                    // check if the user has performed an 'obscure' or special move
-                    if (stringArr.indexOf(x + "," + y) !== -1) {
-                        // if it was the king that was moved and this the king's first move, perform castling
-                        if (pieces[[prevX, prevY]].type === "king" && newPieces[[prevX, prevY]].moved === false) {
-                            newPieces = executeCastling([prevX, prevY], [x, y], pieces);
-                            setTurn(!turn);
-                        }
-                        // otherwise perform en passant
-                        else {
-                            newPieces = executeEnPassant([prevX, prevY], [x, y], pieces);
-                            setTurn(!turn);
-                        }
-                    }
-                    // check if the user has performed a normal valid move
-                    else if (moves.indexOf(x + "," + y) !== -1) {
-                        // update the board to reflect this new movement
-                        newPieces = { ...newPieces, [x + "," + y]: { ...newPieces[[prevX, prevY]], left: x, top: y, moved: true }, [prevX + "," + prevY]: {} };
-                        // disable is used to prevent the software from giving the turn to the opposite colour when playing offline and is used when promoting
-                        // a pawn as after moving a pawn to a position where it can promote, users need to select the promoted piece before resuming game
-                        if (!disable) {
-                            setTurn(!turn);
-                        }
-                        else if (connected) {
-                            setTurn(!turn);
-                        }
-                    }
-                }
-
-                else if (moves.indexOf(x + "," + y) !== -1) {
-                    newPieces = { ...newPieces, [x + "," + y]: { ...newPieces[[prevX, prevY]], left: x, top: y, moved: true }, [prevX + "," + prevY]: {} };
-                    if (!disable) {
-                        setTurn(!turn);
-                    }
-                    else if (connected) {
-                        setTurn(!turn);
-                    }
-                }
-
-                setSelected({});
-                setPieces(newPieces);
-
-                // send the new board to the adversary user
-                if (connected) {
-                    if (y !== 0 && y !== 7) {
-                        socket.emit("play", { to: data.opponID, newBoard: newPieces });
-                    }
-                    else if (newPieces[[x, y]].type !== "pawn") {
-                        socket.emit("play", { to: data.opponID, newBoard: newPieces });
-                    }
-                }
-
-                // get rid of all the blue dots on the screen
-                setMarkers(new Array(8).fill(new Array(8).fill(false)));
-            }
-
             else {
+                // remove all markers from the chess board.
                 setMarkers(new Array(8).fill(new Array(8).fill(false)));
+                setSelected([]);
             }
         }
-    }
+        
+        // check if the user has clicked on a place on the board after selecting a piece they want to move.
+        else if (pieces[x + "," + y] !== undefined && selected[0] !== undefined && !promote) {
+            const [selectedX, selectedY] = selected;
+            
+            // check if the square the user clicked on is a position that the piece the user selected 
+            // earlier is allowed to move to. then send the move to the server.
+            if (pieces[selectedX + "," + selectedY].moves) {
+                for (let move of pieces[selectedX + "," + selectedY].moves) {
+                    if (colourSide === "white") {
+                        if (move.nextPos[0] === x && move.nextPos[1] === y) {
+                            if (move["moveType"] === "PROMOTE") {
+                                setPromote(true);
+                                setPromoteMove(move);
+                            }
+                            else {
+                                const msg = {"from": username === null ? "null" : username["name"], "type": "MOVE", "move": move};
+                                socket.current.send(JSON.stringify(msg));
+                                break;
+                            }
+                        }
+                    }
 
-    // function determines whether a black or white king has been checked and if so then the black king needs to
-    // be considered as having moved, because after being checked a king cannot perform castling again
-    function findChecks(board) {
-        const blackChecked = kingChecked(board, "black");
-        const whiteChecked = kingChecked(board, "white");
-        var found = undefined;
-
-        for (let coord of Object.keys(board)) {
-            if (blackChecked) {
-                if (board[coord].colour === "black" && board[coord].type === "king" && board[coord].moved === false) {
-                    found = coord;
+                    else {
+                        if (move.nextPos[0] === x && move.nextPos[1] === y) {
+                            if (move["moveType"] === "PROMOTE") {
+                                setPromote(true);
+                                setPromoteMove(move);
+                            }
+                            else {
+                                const msg = {"from":username === null ? "null" : username["name"], "type": "MOVE", "move": move};
+                                socket.current.send(JSON.stringify(msg));
+                                break;
+                            }
+                        }
+                    }
                 }
             }
 
-            else if (whiteChecked) {
-                if (board[coord].colour === "white" && board[coord].type === "king" && board[coord].moved === false) {
-                    found = coord;
-                }
-            }
+            // remove all markers from the chess board.
+            setMarkers(new Array(8).fill(new Array(8).fill(false)));
+            setSelected([]);
         }
 
-        if (found !== undefined) {
-            return { ...board, [found]: { ...board[found], moved: true } };
+        // check if the user has selected a new piece that a pawn can promote to.
+        else if (promote && event.target.className === "choice") {
+            const msg = {"from": username === null ? "null" : username["name"], "type": "MOVE", "move": {...promoteMove, "pieceType": event.target.title.toUpperCase()}};
+            socket.current.send(JSON.stringify(msg));
+            setPromote(false);
         }
 
-        return board;
+        // otherwise just check the chess board of any markers.
+        else if (!promote) {
+            setMarkers(new Array(8).fill(new Array(8).fill(false)));
+            setSelected([]);
+        }
     }
 
-    // function draws the markers or blue dots on the screen indicating valid moves for a piece
+    // function draws the markers or blue dots on the screen indicating valid moves for a piece.
     function showMarkers() {
         const output = [];
 
@@ -285,130 +179,237 @@ export default function App(props) {
         return output;
     }
 
-    // function sends a message to adversary user that the player has conceded the match
-    function concedeMatch() {
-        if (drawn === null && conceded === null && !checkMate(pieces, "white") && !checkMate(pieces, "black")) {
-            setConceded(true);
-            socket.emit("concede", { to: data.opponID });
-        }
+    // function to send a concede match message to the server.
+    const concedeMatch = () => {
+        const msg = {"from": username["name"], "type": "CONCEDE", "content": ""};
+        socket.current.send(JSON.stringify(msg));
     }
 
-    // function sends a message to adversary user that the player would like to draw the match
-    function offerDraw() {
-        if (drawn === null && conceded === null) {
-            socket.emit("offer", { to: data.opponID });
-        }
+    // function to send a draw offer request to the server.
+    const offerDraw = () => {
+        const msg = {"from": username["name"], "type": "DRAWOFFER", "content": ""};
+        setDrawn(null);
+        socket.current.send(JSON.stringify(msg));
     }
 
-    // function sends a reply to adversary user whether the player would like to draw the match or not
-    function respondOffer(event) {
-        if (drawn === null && conceded === null) {
-            if (event.target.value === "accept") {
-                setDrawn(true);
-            }
-            else {
-                setOffer(false);
-            }
-
-            socket.emit("res", { to: data.opponID, response: event.target.value });
+     // function to respond to a draw offer and send to the server.
+    const respondOffer = (e) => {
+        var msg = {};
+        if (e.target.value === "accept") {
+            msg = {"from": username["name"], "type": "DRAW", "content": ""};
         }
+        else if (e.target.value === "decline") {
+            msg = {"from": username["name"], "type": "DECLINEDRAW", "content": ""};
+            setOffer(false);
+        }
+        socket.current.send(JSON.stringify(msg));
     }
 
-    // functions sends a message to the user indicating that a promotion has taken place
-    function sendPromote() {
-        if (promoted) {
-            socket.emit("play", { to: data.opponID, newBoard: pieces });
-            setPromoted(false);
-        }
+    // function to send a chat message to the server.
+    const sendMessage = () => {
+        const msg_text = document.getElementById("message").value;
+        const msg = {"from": username["name"], "type": "MSG", "content": username["name"] + ": " + msg_text};
+        socket.current.send(JSON.stringify(msg));
+        setMessages([...messages, "You: " + msg_text]);
+        document.getElementById("message").value = "";
     }
 
-    // fetch the user's data which includes what colour they are playing as
+    // function to close the WebSocket connection.
+    const closeSocket = () => {
+        socket.close();
+    }
+
+    // effect to fetch the user's username and security number when connected.
     React.useEffect(() => {
-        fetch("/api")
-            .then(res => res.json())
+        if (connected) {
+            fetch("/api/get")
             .then(data => {
-                setData(data);
-                setColour(data.colour)
-
-                if (data.colour === "white") {
-                    setTurn(true);
-                    setOpposite("black");
+                if (data["status"] === 200) {
+                    return data.json();
                 }
-
                 else {
-                    setTurn(false);
-                    setOpposite("white");
+                    return {};
+                }
+            })
+            .then(data => {
+                for (let key in data) {
+                    if (username === null || username["name"] !== key)
+                        setUsername({"name": key, "num": data[key]});
                 }
             });
+        }
     }, []);
 
-    // draw the board to the screen depending on what colour the user is
+    // effect to manage WebSocket connection and message handling.
     React.useEffect(() => {
-        if (colourSide !== "") {
-            fillBoard(board, colourSide, opposite, setPieces);
+        let client;
+        // check that the user is playing online, has a username and has no prior
+        // websocket connection before connecting to the server.
+        if ((username !== null || !connected) && socket.current === null) {
+            client = new WebSocket("/websocket");
         }
-    },
-        [colourSide]);
+        
+        // when a websocket connection is established send an initialisation message to the server
+        // containing the user's username and security number
+        function handleOpen() {
+            let toSend = null;
+            if (connected) {
+                toSend = {"from": username["name"], "type": "INIT", "content": username["num"]};
+            }
+            else {
+                toSend = {"from": "null", "type": "INIT", "content": "SINGLE"}; 
+            }
+            client.send(JSON.stringify(toSend));
+        }
+        
+        // handles reception of websocket messages from the server
+        function handleMessage(event) {
+            const message = JSON.parse(event.data);
 
-    // logic for handling the reception of socket messages
-    React.useEffect(() => {
-        socket.on("move", (message) => {
-            if (message.to === data.id) {
-                const actualBoard = {};
-
-                // inverts the board as from the perspective of one user the board is inverted compared to the other
-                for (let coord of Object.keys(message.newBoard)) {
-                    const [x, y] = coord.split(",");
-                    const newX = 7 - parseInt(x);
-                    const newY = 7 - parseInt(y);
-                    actualBoard[[newX, newY]] = { ...message.newBoard[[x, y]], left: newX, top: newY };
+            // handles messages when the server sends the chess board to the user
+            if (message["type"] === "BOARD") {
+                if (waiting) {
+                    setWaiting(false);
                 }
 
-                setPieces(actualBoard);
-                setTurn(true);
-            }
-        });
+                if (message["board"]["state"] === "WHITEWIN") {
+                    setWhiteWin(true);
+                }
 
-        socket.on("win", (message) => {
-            if (message.to === data.id) {
-                setConceded(false);
-            }
-        })
-
-        socket.on("offering", (message) => {
-            if (message.to === data.id) {
-                setOffer(true);
-            }
-        })
-
-        socket.on("outcome", (message) => {
-            if (message.to === data.id) {
-                if (message.response === "accept") {
+                else if (message["board"]["state"] === "BLACKWIN") {
+                    setWhiteWin(false);
+                }
+    
+                else if (message["board"]["state"] === "DRAW") {
                     setDrawn(true);
                 }
+                
+                setPieces(message["board"]["board"]);
 
+                setWhiteKingChecked(message["board"]["whiteKing"]["checked"]);
+                setBlackKingChecked(message["board"]["blackKing"]["checked"]);
+
+                // if the user is not playing online, after playing a move, set the turn
+                // to whatever is provided in the board object
+                if (!connected) {
+                    setTurn(message["board"]["whiteTurn"]);
+                    setColour("white");
+                }
+                
                 else {
-                    setDrawn(false);
-                    setTimeout(() => setDrawn(null), 5000);
+                    // if the user's username matches the "player1" field in the board object sent
+                    // by the server, set that user to be white and adjust their turns accordingly
+                    if (message["board"]["player1"] === username["name"]) {
+                        setColour("white");
+                        setOpponent(message["board"]["player2"]);
+                        if (message["board"]["whiteTurn"]) {
+                            setTurn(true);
+                        }
+                        else {
+                            setTurn(false);
+                        }
+                    }
+                    // if the user's username matches the "player2" field in the board object sent by
+                    // by the server, set that user to be black and adjust their turns accordingly
+                    else if (message["board"]["player2"] === username["name"]) {
+                        setColour("black");
+                        setOpponent(message["board"]["player1"]);
+                        if (!message["board"]["whiteTurn"]) {
+                            setTurn(true);
+                        }
+                        else {
+                            setTurn(false);
+                        }
+                    }
                 }
             }
-        })
 
-        return (() => {
-            socket.close("move");
-            socket.close("win");
-            socket.close("move");
-            socket.close("outcome");
-        })
-    }, [socket])
+            else if (message["type"] === "DRAWOFFER") {
+                setOffer(true);
+            }
 
-    return (
-        <div className="App">
-            <Header />
-            {connected && <p>Matchup: {data.name} (You) vs {data.opponent}</p>}
-            <Board right={xAdjust} down={yAdjust} set={pieces} func={pickObject} side={colourSide} opposing={opposite} markers={showMarkers} promotions={checkPromotion} />
-            <Sidebar playerTurn={turn} online={connected} side={colourSide} set={pieces} concede={concedeMatch} draw={offerDraw} drawStatus={drawn} loss={conceded} offered={offer} response={respondOffer} left={900 + parseInt(xAdjust) + "px"} top={parseInt(yAdjust) + "px"} />
-            {sendPromote()}
-        </div>
+            else if (message["type"] === "DECLINEDRAW") {
+                setDrawn(false);
+            }
+
+            else if (message["type"] === "CONCEDE") {
+                setConcede(true);
+            }
+
+            else if (message["type"] === "MSG") {
+                setMessages([...messages, message["content"]]);
+            }
+        }
+        
+        // save the websocket object as a react reference and 
+        // add the above functions as event handlers
+        if (username !== null || !connected) {
+            if (socket.current === null) {
+                socket.current = client;
+            }
+            socket.current.addEventListener('open', handleOpen);
+            socket.current.addEventListener('message', handleMessage);
+        }
+        
+        return () => {
+            if ((username !== null || !connected) && socket.current === null) {
+                client.removeEventListener('open', handleOpen);
+                client.removeEventListener('message', handleMessage);
+                client.close();
+            }
+        };
+    }, [username, messages]);
+
+    // effect to update handlers for mouse clicks on the chess board and when the
+    // user leaves the webpage, their socket connection must be terminated
+    React.useEffect(() => {
+        document.addEventListener("mousedown", pickObject);
+        document.addEventListener("beforeunload", closeSocket);
+
+        return () => {
+            document.removeEventListener("mousedown", pickObject);
+            document.removeEventListener("beforeinput", closeSocket);
+        }
+    }, [pieces, selected, promote, promoteMove, username]);
+
+    // if the user is currently waiting for another user to be paired with them display the
+    // wait webpage, otherwise display the webpage containing the chess board
+    return ( waiting ? <Wait /> : 
+        (
+            <div className="App">
+                <Header />
+                { connected && username !== null && opponent !== "" && <h3>{username["name"]} vs {opponent}</h3> }
+
+                <Board 
+                    right={xAdjust} 
+                    down={yAdjust} 
+                    set={pieces} 
+                    side={colourSide}
+                    markers={showMarkers} 
+                />
+                {promote && <PickPromotion
+                    side={turn ? "white" : "black"}
+                    x={selected[0] * 100 + parseInt(xAdjust) + 75}
+                    y={selected[1] * 100 + parseInt(yAdjust)}
+                    coord={selected[0] + "," + selected[1]}
+                />}
+                <Sidebar 
+                    online={connected} 
+                    concede={concedeMatch} 
+                    draw={offerDraw} 
+                    drawStatus={drawn} 
+                    loss={whiteWin} 
+                    offered={offer}
+                    conceded={conceded}
+                    whiteChecked={whiteKingChecked}
+                    blackChecked={blackKingChecked}
+                    response={respondOffer}
+                    send={sendMessage}
+                    messages={messages}
+                    left={900 + parseInt(xAdjust) + "px"} 
+                    top={parseInt(yAdjust) + "px"} 
+                />
+            </div>
+        )
     );
 }

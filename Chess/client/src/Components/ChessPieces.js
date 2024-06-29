@@ -11,46 +11,39 @@ import blackKing from "../assets/kingB.png";
 import whiteKing from "../assets/kingW.png";
 import blackQueen from "../assets/queenB.png";
 import whiteQueen from "../assets/queenW.png";
-import { getMoves, validateMoves, castling, enPassant } from "../Helper";
 
-// function will determine which image should be drawn to the screen for
-// each piece on the board and set their moves
+// function will determine which image should be drawn to the screen for each piece on the board
 export default function ChessPieces(props) {
     function setPieces() {
         const output = []
-
-        // set the moves of all the pieces on the board
-        getMoves(props.set, props.side);
-        validateMoves(props.set, props.side);
-        castling(props.set, props.side);
-        enPassant(props.set);
-
         // iterate through each piece on the board and determine the correct image to 
         // be displayed which will represent each piece on the board
-
         for (let piece of Object.values(props.set)) {
-            if (piece.type !== undefined) {
+            if (piece !== null) {
                 const img = (
                     <img src={
-                        piece.colour === "white" ?
-                            (piece.type === "pawn" ? whitePawn :
-                                piece.type === "knight" ? whiteKnight :
-                                    piece.type === "bishop" ? whiteBishop :
-                                        piece.type === "rook" ? whiteRook :
-                                            piece.type === "queen" ? whiteQueen :
-                                                piece.type === "king" ? whiteKing : "") :
+                        piece.white ?
+                            (piece.type === "PAWN" ? whitePawn :
+                                piece.type === "KNIGHT" ? whiteKnight :
+                                    piece.type === "BISHOP" ? whiteBishop :
+                                        piece.type === "ROOK" ? whiteRook :
+                                            piece.type === "QUEEN" ? whiteQueen :
+                                                piece.type === "KING" ? whiteKing : "") :
 
-                            (piece.type === "pawn" ? blackPawn :
-                                piece.type === "knight" ? blackKnight :
-                                    piece.type === "bishop" ? blackBishop :
-                                        piece.type === "rook" ? blackRook :
-                                            piece.type === "queen" ? blackQueen :
-                                                piece.type === "king" ? blackKing : "")
+                            (piece.type === "PAWN" ? blackPawn :
+                                piece.type === "KNIGHT" ? blackKnight :
+                                    piece.type === "BISHOP" ? blackBishop :
+                                        piece.type === "ROOK" ? blackRook :
+                                            piece.type === "QUEEN" ? blackQueen :
+                                                piece.type === "KING" ? blackKing : "")
 
-                    } alt="" className="piece" id={piece.colour} onMouseDown={props.func} style={
-                        {
-                            left: (parseInt(piece.left) * 100) + parseInt(props.right) + 25 + "px",
-                            top: (parseInt(piece.top) * 100) + parseInt(props.down) + 25 + "px",
+                    } alt="" className="piece" id={piece.colour} style={{
+                            left: props.side === "white" ?
+                                ((parseInt(piece.position[0]) * 100) + parseInt(props.right) + 25 + "px") :
+                                (((7 - parseInt(piece.position[0])) * 100) + parseInt(props.right) + 25 + "px"),
+                            top: props.side === "white" ?
+                                ((parseInt(piece.position[1]) * 100) + parseInt(props.down) + 25 + "px") :
+                                (((7 - parseInt(piece.position[1])) * 100) + parseInt(props.down) + 25 + "px")
                         }
                     }
                     />

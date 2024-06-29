@@ -43,8 +43,17 @@ aside {
   position: absolute;
   padding: 5px;
   width: 400px;
-  height: 600px;
+  height: 700px;
+  color: red;
+}
+
+aside > h3 {
   color: black;
+}
+
+.status-section {
+  min-height: 180px;
+  overflow: hidden;
 }
 
 header {
@@ -80,6 +89,10 @@ form,
   margin-top: 15%;
 }
 
+#error {
+  min-height: 30px;
+}
+
 button {
   width: 500px;
   height: 100px;
@@ -95,4 +108,24 @@ button:hover {
   width: 100px;
   height: 50px;
   font-size: 13px;
+}
+
+.msg-section {
+  height: 350px;
+  max-height: 350px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  color: black;
+}
+
+.msg-feature > input {
+  width: 250px;
+}
+
+.msg-btn {
+  height: 30px;
+  width: 70px;
+  font-size: 15px;
+  margin-left: 5px;
+  color: black;
 }
