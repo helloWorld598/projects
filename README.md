@@ -8,10 +8,9 @@ To run this application, the compiled program can be found in the root directory
 
 ## ChatApp
 
-ChatApp is a full-stack CRUD application that enables all users in the server to send messages to one another in a chat room. The backend application was created using the Java Spring Boot Framework, while the front end was developed using the ReactJs framework. Users can send messages to one another because of the server's use of Web Sockets. Furthermore, JSON Web Tokens are utilised within the application to authorise users to access the application after they have authenticated, hence providing security to the site. Users can also update and delete their account details. The server also stores information on a database using MongoDB atlas.
+ChatApp is a full-stack CRUD application that enables all users in the server to send encrypted messages to one another in a chat room. The backend application was created using the Python Flask library using Jinja as the template engine for the frontend. The app generates keys and handles secure storage of the keys for each user to faciliate encrypted communications. The webserver also faciliates HTTPS. The server also stores information on a Sqlite database.
 
-
-To run the Chat application, start the server then run npm start in the directory of the client directory.
+To run the Chat application, start the server by running app.py in the root directory of ChatApp. Ensure that a directory named certs exists, containing the SSL certificate server_cert.crt and the private key to the cert called key.pem to enable HTTPS on the webserver.
 
 ## MazeSolver
 
