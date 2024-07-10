@@ -1,0 +1,121 @@
+{% extends 'base.jinja' %}
+
+{% block css %}
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/articles.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<ul class="nav-bar">
+    <li><a href="/friends">Home</a></li>
+    <li><a href="/articles">Articles</a></li>
+    <li><a href="/publish">Publish</a></li>
+    {% if user.role == 'staff' %}
+        <li"><a href="/panel">Control Panel</a></li> {# THIS IS WHERE PANEL WILL BE #}
+    {% endif %}
+    <li class="end-section"><a href="/logout">Logout</a></li>
+    <li class="no-hover">Friends</li>
+    {% if friends %}
+        {% for friend in friends %}
+            <li id="friend_{{ friend.username }}">
+                <a>{{ friend.username }}</a>
+                <span>{{ friend.role }}</span>
+                <span class="status offline" id="status_{{ friend.username }}">Offline</span>
+                <br>
+                <button onclick="window.location.href='/home?chatwith={{ friend.username }}'">Chat</button>
+                <button onclick="removeFriend('{{ friend.username }}', '{{ user.username }}')">Remove Friend</button>
+                <br>
+            </li>
+        {% endfor %}
+    {% endif %}
+    <li class="no-hover">Groups</li>
+    {% if group_chats %}
+        {% for group in group_chats %}
+            <li class="group-list" id="group_{{ group }}">
+                <a>{{ group }}</a>
+                <button onclick="window.location.href='/home?chatwith={{ group }}'">Chat</button>
+                <br>
+            </li>
+        {% endfor %}
+    {% endif %}
+</ul>
+
+<main>
+    {% if user.username == author or user.role == 'staff' %}
+        <div class="modify-article">
+            <button class="delete-button" type="button" onClick="deleteArticle()">Delete Article</button>
+            <button class="modify-button" type ="button" onClick="modifyArticle()">Modify Article</button>
+        </div>
+    {% endif %}
+
+    <h1>{{ title }}</h1>
+
+    <p>author: {{ author }}</p>
+
+    <p>{{ content }}</p>
+
+    <h3>Comment on the article</h3>
+    <form id="sendFriendRequestForm">
+        <input type="text" id="comment" name="comment" placeholder="Enter a comment...">
+        <button type="button" onclick="addComment()">Send Comment</button>
+    </form>
+
+    <ul id="comments">
+        {% for comment in comments %}
+            <li id="{{ comment.id }}">
+                {{ comment.author }}
+                <br>
+                {{ comment.content }}
+                {% if comment.author == user.username or user.role == 'staff' %}
+                    <button onclick="deleteComment('{{ comment.comment_id }}')">Delete</button>
+                {% endif %}
+            </li>
+            <br>
+        {% endfor %}
+    </ul>
+</main>
+
+<script src="/static/js/libs/socket.io.min.js"></script>
+<script>
+    var socket = io(); // Initialize Socket.IO connection
+    
+    var article_id = {{ article_id }};
+    
+    function addComment() {
+        let comment = $("#comment").val();
+        $("#comment").val("");
+        socket.emit("comment", article_id, comment);
+    }
+
+    function deleteComment(comment_id) {
+        socket.emit("delete_comment", comment_id, article_id);
+        const commentItem = document.getElementById(comment_id);
+        if (commentItem) {
+            commentItem.remove();
+        }
+
+    }
+
+    function deleteArticle() {
+        socket.emit("delete_article", article_id);
+        alert(`Deleted Article`);
+        window.location.href = "/friends";
+    }
+
+    function modifyArticle() {
+        window.location.href = `/editor?article_id=${article_id}`;
+    }
+
+    socket.on('update_comments', function(comments_obj) {
+        $('#comments').empty();
+
+        if (comments_obj.article_id == article_id) {
+            for (let comment of comments_obj.comments) {
+                var list_comment = $('<li>' + comment.author + '<br>' + comment.content + '</li>');
+                $('#comments').append(list_comment);
+            }
+        }
+    });
+</script>
+
+{% endblock %}

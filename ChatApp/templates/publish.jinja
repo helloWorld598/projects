@@ -1,0 +1,77 @@
+{% extends 'base.jinja' %}
+
+{% block content %}
+
+<ul class="nav-bar">
+    <li><a href="/friends">Home</a></li>
+    <li><a href="/articles">Articles</a></li>
+    <li class="active"><a href="/publish">Publish</a></li>
+    {% if user.role == 'staff' %}
+        <li><a href="/panel">Control Panel</a></li> {# THIS IS WHERE PANEL WILL BE #}
+    {% endif %}
+    <li class="end-section"><a href="/logout">Logout</a></li>
+    <li class="no-hover">Friends</li>
+    {% if friends %}
+        {% for friend in friends %}
+            <li id="friend_{{ friend.username }}">
+                <a>{{ friend.username }}</a>
+                <span>{{ friend.role }}</span>
+                <span class="status offline" id="status_{{ friend.username }}">Offline</span>
+                <br>
+                <button onclick="window.location.href='/home?chatwith={{ friend.username }}'">Chat</button>
+                <button onclick="removeFriend('{{ friend.username }}', '{{ user.username }}')">Remove Friend</button>
+                <br>
+            </li>
+        {% endfor %}
+    {% endif %}
+    <li class="no-hover">Groups</li>
+    {% if group_chats %}
+        {% for group in group_chats %}
+            <li class="group-list" id="group_{{ group }}">
+                <a>{{ group }}</a>
+                <button onclick="window.location.href='/home?chatwith={{ group }}'">Chat</button>
+                <br>
+            </li>
+        {% endfor %}
+    {% endif %}
+</ul>
+
+<main>
+    <form id="article-form">
+        <label for="title">Title:</label><br>
+        <input type="text" id="title" name="title"><br><br>
+        <label for="content">Content:</label><br>
+        <textarea id="content" name="content" rows="6" cols="50"></textarea><br><br>
+        <input type="submit" value="Publish Article" onclick="publishArticle(event)">
+    </form>
+</main>
+
+<script src="/static/js/libs/socket.io.min.js"></script>
+<script>
+    var socket = io();
+
+    function publishArticle(event) {
+        event.preventDefault();
+        
+        var title = document.getElementById("title").value;
+        var content = document.getElementById("content").value;
+
+        if (title.length == 0) {
+            alert("Article has no title!");
+            return;
+        }
+
+        if (content.length == 0) {
+            alert("There is no content!");
+            return;
+        }
+
+        socket.emit('create_article', title, content, (res) => {
+            if (res) {
+                window.location.href = '/articles';
+            }
+        });
+    }
+</script>
+
+{% endblock %}

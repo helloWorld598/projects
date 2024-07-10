@@ -1,0 +1,250 @@
+{% extends 'base.jinja' %}
+
+{% block css %}
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/articles.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<ul class="nav-bar">
+    <li><a href="/friends">Home</a></li>
+    <li><a href="/articles">Articles</a></li>
+    <li><a href="/publish">Publish</a></li>
+    {% if user.role == 'staff' %}
+        <li class="active"><a href="/panel">Control Panel</a></li> {# THIS IS WHERE PANEL WILL BE #}
+    {% endif %}
+    <li class="end-section"><a href="/logout">Logout</a></li>
+    <li class="no-hover">Friends</li>
+    {% if friends %}
+        {% for friend in friends %}
+            <li id="friend_{{ friend.username }}">
+                <a>{{ friend.username }}</a>
+                <span>{{ friend.role }}</span>
+                <span class="status offline" id="status_{{ friend.username }}">Offline</span>
+                <br>
+                <button onclick="window.location.href='/home?chatwith={{ friend.username }}'">Chat</button>
+                <button onclick="removeFriend('{{ friend.username }}', '{{ user.username }}')">Remove Friend</button>
+                <br>
+            </li>
+        {% endfor %}
+    {% endif %}
+    <li class="no-hover">Groups</li>
+    {% if group_chats %}
+        {% for group in group_chats %}
+            <li class="group-list" id="group_{{ group }}">
+                <a>{{ group }}</a>
+                <button onclick="window.location.href='/home?chatwith={{ group }}'">Chat</button>
+                <br>
+            </li>
+        {% endfor %}
+    {% endif %}
+</ul>
+
+<main>
+    <h2> Control Panel </h2>
+
+    <div>
+        <ul>
+            {% for user in users %}
+                {% if user.role == 'student' %}
+                    <li>
+                        <a>{{ user.username }}</a>
+                        <button class="delete-button blacklist-posting">Blacklist Posting</button>
+                        <button class="unmute-button unblacklist-posting">Unmute Posting</button>
+                        <form class="room-form">
+                            <input type="text" name="roomName" placeholder="Room Name">
+                            <button type="submit" name="action" value="blacklist" class="delete-button">Blacklist Room</button>
+                            <button type="submit" name="action" value="unmute" class="unmute-button">Unmute Room</button>
+                        </form>
+                        <button class="delete-button blacklist-all-rooms">Blacklist all rooms</button>
+                        <button class="unmute-button unblacklist-all-rooms">Unmute all rooms</button>
+                        <br>
+                    </li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </div>
+</main>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const blacklistPostingButtons = document.querySelectorAll('.blacklist-posting');
+        const unblacklistPostingButtons = document.querySelectorAll('.unblacklist-posting');
+        const roomForms = document.querySelectorAll('.room-form');
+        const blacklistAllRoomsButtons = document.querySelectorAll('.blacklist-all-rooms');
+        const unblacklistAllRoomsButtons = document.querySelectorAll('.unblacklist-all-rooms');
+
+        blacklistPostingButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const username = this.parentElement.querySelector('a').textContent;
+                blacklistPosting(username);
+            });
+        });
+
+        unblacklistPostingButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const username = this.parentElement.querySelector('a').textContent;
+                unblacklistPosting(username);
+            });
+        });
+
+        roomForms.forEach(form => {
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+                const roomName = this.roomName.value;
+                const action = event.submitter.value;
+                const username = this.parentElement.querySelector('a').textContent;
+
+                if (action === 'blacklist') {
+                    blacklistRoom(username, roomName);
+                } else if (action === 'unmute') {
+                    unmuteRoom(username, roomName);
+                }
+            });
+        });
+
+        blacklistAllRoomsButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const username = this.parentElement.querySelector('a').textContent;
+                blacklistAllRooms(username);
+            });
+        });
+
+        unblacklistAllRoomsButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const username = this.parentElement.querySelector('a').textContent;
+                unblacklistAllRooms(username);
+            });
+        });
+
+        function blacklistPosting(username) {
+            fetch('/control/user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: username,
+                    blacklist_type: 'articles'
+                })
+            }).then(response => {
+                if (response.ok) {
+                    alert(`${username} successfully blacklisted from posting.`);
+                } else {
+                    alert(`Failed to blacklist ${username} from posting.`);
+                }
+            }).catch(error => {
+                alert(`Error occurred while blacklisting ${username} from posting:`, error);
+            });
+        }
+
+        function unblacklistPosting(username) {
+            fetch('/control/user/unmute', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: username,
+                    blacklist_type: 'articles'
+                })
+            }).then(response => {
+                if (response.ok) {
+                    alrt(`${username} successfully un-blacklisted from posting.`);
+                } else {
+                    alert(`Failed to un-blacklist ${username} from posting.`);
+                }
+            }).catch(error => {
+                alert(`Error occurred while blacklisting ${username} from posting:`, error);
+            });
+        }
+
+        function unmuteRoom(username, roomName) {
+            fetch('/control/user/unmute', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: username,
+                    blacklist_type: 'chat_rooms',
+                    room_name: roomName
+                })
+            }).then(response => {
+                if (response.ok) {
+                    alert(`${username} successfully un-blacklisted from room "${roomName}".`);
+                } else {
+                    alert(`Failed to un-blacklist ${username} from room "${roomName}".`);
+                }
+            }).catch(error => {
+                alert(`Error occurred while blacklisting ${username} from room "${roomName}":`, error);
+            });
+        }
+
+        function blacklistRoom(username, roomName) {
+            fetch('/control/user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: username,
+                    blacklist_type: 'chat_rooms',
+                    room_name: roomName
+                })
+            }).then(response => {
+                if (response.ok) {
+                    alert(`${username} successfully blacklisted from room "${roomName}".`);
+                } else {
+                    alert(`Failed to blacklist ${username} from room "${roomName}".`);
+                }
+            }).catch(error => {
+                console.error(`Error occurred while blacklisting ${username} from room "${roomName}":`, error);
+            });
+        }
+
+        function blacklistAllRooms(username) {
+            fetch('/control/user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: username,
+                    blacklist_type: 'all_rooms'
+                })
+            }).then(response => {
+                if (response.ok) {
+                    alert(`${username} successfully blacklisted from all rooms.`);
+                } else {
+                    alert(`Failed to blacklist ${username} from all rooms.`);
+                }
+            }).catch(error => {
+                alert(`Error occurred while blacklisting ${username} from all rooms:`, error);
+            });
+        }
+
+        function unblacklistAllRooms(username) {
+            fetch('/control/user/unmute', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: username,
+                    blacklist_type: 'all_rooms'
+                })
+            }).then(response => {
+                if (response.ok) {
+                    alert(`${username} successfully un-blacklisted from all rooms.`);
+                } else {
+                    alert(`Failed to un-blacklist ${username} from all rooms.`);
+                }
+            }).catch(error => {
+                alert(`Error occurred while un-blacklisting ${username} from all rooms:`, error);
+            });
+        }
+    });
+</script>
+
+{% endblock %}

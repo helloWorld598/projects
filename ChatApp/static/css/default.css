@@ -1,0 +1,151 @@
+/* General body styles */
+body {
+    font-family: Arial, sans-serif; /* Sets the font for the entire page */
+    background-color: white; 
+    color: #333; 
+    line-height: 1.6; 
+    padding: 20px; 
+    margin: 0; 
+}
+
+.header {
+    position: absolute;
+    top: 2%;
+    left: 130%;
+}
+
+.header div {
+    padding: 8px;
+    width: 500%;
+}
+
+h1 {
+    color: black; 
+}
+
+ul {
+    list-style: none; 
+    padding: 0;
+}
+
+li {
+    background-color: #fff; 
+    border: 1px solid #ddd; 
+    padding: 10px;
+    margin-bottom: 10px;
+    display: inline-block;
+}
+
+form {
+    margin-top: 10px;
+}
+
+.login-signup {
+    text-align: center;
+}
+
+input[type="text"], input[type="submit"], button {
+    padding: 10px;
+    margin-top: 5px;
+}
+
+.login-signup > input {
+    width: 30%;
+    height: 30px;
+    font-size: 20px;
+    text-align: center;
+}
+
+input[type="text"] {
+    width: calc(100% - 22px); 
+}
+
+input[type="submit"], button {
+    background-color: #5783db; 
+    color: white; 
+    border: none; 
+    cursor: pointer; 
+    width: auto; 
+    border-radius: 12px;
+}
+
+.login-signup > button {
+    width: 20%;
+    height: 50px;
+}
+
+a {
+    color: black; 
+    text-decoration: none; 
+}
+
+a:hover {
+    text-decoration: underline; 
+}
+
+#receivedRequestsList li, #sentRequestsList li {
+    position: relative; 
+}
+
+.clearfix::after {
+    content: "";
+    clear: both;
+    display: table;
+}
+
+.nav-bar {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    white-space: nowrap;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 200px;
+    height: 100vh;
+    border-right: 1px solid #ddd;
+    padding: 10px;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    z-index: 1000;
+}
+
+main {
+    display: inline-block;
+    position: fixed;
+    left: 20%;
+}
+
+.nav-bar li {
+    display: block;
+    padding: 0px;
+    margin-bottom: 0px;
+    color: black;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+}
+
+.nav-bar li:hover {
+    background-color: rgb(158, 155, 155);
+}
+
+.nav-bar .no-hover:hover {
+    background-color: white;
+}
+
+.nav-bar .active {
+    background-color: #04AA6D;
+}
+.nav-bar .panel {
+    background-color: grey;
+}
+
+.nav-bar .active:hover {
+    background-color: #04AA6D;
+}
+
+.end-section {
+    border-bottom: 3px solid black;
+}

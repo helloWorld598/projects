@@ -1,0 +1,375 @@
+<!-- 
+    Here you'll find the main exhibit: the chat application code. Feel free to look around!
+-->
+{% extends 'base.jinja' %}
+
+{% block content %} 
+<style>
+    nav {
+        border-bottom: 1px solid black;
+        overflow: auto
+    }
+
+    #message_box {
+        border: 1px solid black; 
+        height: 400px; 
+        width: 800px; 
+        overflow: auto;
+        padding: 2px;
+    }
+
+    .text  {
+        margin-top: 2px;
+        margin-bottom: 2px;
+    }
+
+</style>
+
+<!--Navbar, you'll see the username here-->
+<nav style="border-bottom: 1px solid black;">
+    <ol style="float: right">
+        <li style="display:inline-block">Username:  {{ username }} </li>
+        <li style="display:inline-block">Role:  {{ role }} </li>
+    </ol>
+</nav>
+
+<ul class="nav-bar">
+    <li><a href="/friends">Home</a></li>
+    <li><a href="/articles">Articles</a></li>
+    <li><a href="/publish">Publish</a></li>
+    {% if role == 'staff' %}
+        <li><a href="/panel">Control Panel</a></li> {# THIS IS WHERE PANEL WILL BE #}
+    {% endif %}
+    <li class="end-section"><a href="/logout">Logout</a></li>
+    <li class="no-hover">Friends</li>
+    {% if friends %}
+        {% for friend in friends %}
+            {% if chat_with == friend %}
+                <li id="friend_{{ friend.username }}" class="active">
+                    <a>{{ friend.username }}</a>
+                    <span>{{ friend.role }}</span>
+                    <span class="status offline" id="status_{{ friend.username }}">Offline</span>
+                    <br>
+                    <button onclick="window.location.href='/home?chatwith={{ friend.username }}'">Chat</button>
+                    <button onclick="removeFriend('{{ friend.username }}', '{{ user.username }}')">Remove Friend</button>
+                    <br>
+                </li>
+            {% else %}
+                <li id="friend_{{ friend.username }}">
+                    <a>{{ friend.username }}</a>
+                    <span>{{ friend.role }}</span>
+                    <span class="status offline" id="status_{{ friend.username }}">Offline</span>
+                    <br>
+                    <button onclick="window.location.href='/home?chatwith={{ friend.username }}'">Chat</button>
+                    <button onclick="removeFriend('{{ friend.username }}', '{{ user.username }}')">Remove Friend</button>
+                    <br>
+                </li>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    <li class="no-hover">Groups</li>
+    {% if group_chats %}
+        {% for group in group_chats %}
+            {% if chat_with == group %}
+                <li class="group-list active" id="group_{{ group }}">
+                    <a>{{ group }}</a>
+                    <button onclick="window.location.href='/home?chatwith={{ group }}'">Chat</button>
+                    <br>
+                </li>
+            {% else %}
+                <li class="group-list" id="group_{{ group }}">
+                    <a>{{ group }}</a>
+                    <button onclick="window.location.href='/home?chatwith={{ group }}'">Chat</button>
+                    <br>
+                </li>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+</ul>
+
+<main>
+    <h1>Messaging App </h1>
+
+    <!-- The messages are displayed here -->
+    <section id="message_box"></section>
+
+    <!-- The (message) input box is set to display: none initially, 
+    this means the input box is "invisible" initially-->
+    <section id="input_box" style="display: none" >
+        <p class="text">Message: </p>
+        <input id="message" placeholder="message">
+        <button onclick="send()">Send</button>
+    </section>
+    <button onclick="leave()">Leave Room</button>
+</main>
+
+<script src="/static/js/libs/socket.io.min.js"></script>
+<script src="/static/js/libs/axios.min.js"></script>
+<script>
+    let room_id = 0;
+
+    // when the user presses the "Enter" key inside of the "message box", 
+    // the message is sent to the server
+    $("#message").on("keyup", (e) => {
+        if (e.key == "Enter") {
+            send();
+        }
+    })
+    
+    let username = "{{ username }}";
+    let unescaped_username = "{{ unescaped }}";
+
+    let receiver;
+
+    let key_pair;
+    let shared_secret_key;
+    let password_derived_key;
+    
+    let private_key;
+    let public_key;
+    let public_keys;
+
+    // initializes the socket
+    let socket = io();
+
+    $(document).ready(async () => {
+        const key_string = new Uint8Array(JSON.parse(localStorage.getItem("key")));
+        const key_res = await axios.get("/key/master");
+        const master_key_res = key_res.data["key"];
+        const iv = key_res.data["iv"];
+
+        const master_server_key = await crypto.subtle.importKey(
+            'raw',
+            new TextEncoder().encode(master_key_res),
+            { name: 'AES-GCM' },
+            true,
+            ['encrypt', 'decrypt']
+        );
+
+        const password_derived_key_buffer = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv: new TextEncoder().encode(iv) },
+            master_server_key,
+            key_string.buffer
+        );
+
+        password_derived_key = await crypto.subtle.importKey(
+            'raw',
+            password_derived_key_buffer,
+            { name: 'AES-GCM' },
+            true,
+            ['encrypt', 'decrypt']
+        );
+
+        // get the RSA keys and decrypt the private key using password derived key
+        const rsa_keys_res = await axios.get("/key/pair/get");
+
+        const public_key_string = new Uint8Array(rsa_keys_res.data["public"]);
+        public_key = await crypto.subtle.importKey(
+            "spki", 
+            public_key_string,
+            {
+                name: "RSA-OAEP",
+                hash: { name: "SHA-256" },
+            },
+            true,
+            ["encrypt"]
+        );
+        
+        const key_salt_res = await axios.get("/key/salt");
+        const salt_for_iv = Uint8Array.from(key_salt_res.data);
+
+        const decrypted_private_key = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv: new TextEncoder().encode(salt_for_iv) },
+            password_derived_key,
+            new Uint8Array(rsa_keys_res.data["private"])
+        );
+
+        private_key = await crypto.subtle.importKey(
+            "pkcs8",
+            decrypted_private_key,
+            {
+                name: "RSA-OAEP",
+                hash: { name: "SHA-256" },
+            },
+            true,
+            ["decrypt"]
+        );
+        
+        const past_messages = {{ chat_history }};
+
+        if (past_messages.length > 0) {
+            for (let message of past_messages) {
+                try {
+                    const decrypted = await NewDecryptMessage(message, private_key);
+                    add_message(decrypted, "black");
+                } catch {
+                    console.log(message);
+                }
+            }
+        }
+
+        await join_room();
+    })
+
+    $(window).on('beforeunload', () => {
+        socket.emit('leave', room_id);
+        socket.disconnect();
+    })
+
+    // if the user was part of a room, obtain room id here
+    socket.on("room", (msg, room_num) => {
+        room_id = room_num;
+        const last_msg = $('[id="msg"]:last');
+        if (last_msg.text() != msg) {
+            add_message(msg, "green");
+        }
+    })
+
+    // receive the public keys of all users in the chat room
+    socket.on("public_keys", async (user_keys) => {
+        public_keys = user_keys;
+        $("#input_box").show();
+    })
+
+    // Function to encrypt a message using RSA-OAEP keys
+    async function NewEncryptMessage(message, public_key) {
+        const encodedMessage = new TextEncoder().encode(message);
+        
+        const encrypted = await crypto.subtle.encrypt(
+            { name: "RSA-OAEP" },
+            public_key,
+            encodedMessage
+        );
+
+        const encryptedArray = new Uint8Array(encrypted);
+
+        return btoa(String.fromCharCode.apply(null, encryptedArray));
+    }
+
+    // Function to decrypt a message using RSA-OAEP keys
+    async function NewDecryptMessage(message, private_key) {
+        const encryptedArray = new Uint8Array(atob(message).split('').map(char => char.charCodeAt(0)));
+        
+        const decrypted = await crypto.subtle.decrypt(
+            { name: "RSA-OAEP" },
+            private_key,
+            encryptedArray
+        );
+
+        return new TextDecoder().decode(decrypted);
+    }
+
+    // an incoming user message arrives, we'll add the message to the message box
+    socket.on("new_incoming_message", async (data, color="black") => {
+        const { message, sender, receiver } = data;
+        const encryptedMessage = message.trim();
+        
+        if (receiver === unescaped_username) {
+            try {
+                const decryptedMsg = await NewDecryptMessage(encryptedMessage, private_key);
+                add_message(decryptedMsg, color);
+            } catch (error) {
+                console.error("Failed to decrypt or verify the message:", error);
+                add_message(`Failed to decrypt message from ${sender}`, "red");
+            }
+        }
+    })
+
+    // an incoming user message arrives, we'll add the message to the message box
+    socket.on("incoming_message", async (data, color="black") => {     
+        const { message: encryptedMessage, tag: authTag, username: user } = data;
+        encryptedContent = encryptedMessage.trim();
+
+        try {
+            const decryptedMsg = await decryptMessageWithMAC(encryptedContent, authTag);
+            const finalMessage = `${user}: ${decryptedMsg}`;
+            add_message(finalMessage, color);
+
+            const user_pass_encrypted_msg = await encryptMessage(finalMessage, password_derived_key);
+            socket.emit("store_msg", user_pass_encrypted_msg, room_id);
+        } catch (error) {
+            console.error("Failed to decrypt or verify the message:", error);
+            add_message(`Failed to decrypt message from ${user}`, "red");
+        }
+    });
+
+    // an incoming server message arrives, we'll add the message to the message box
+    socket.on("incoming", async (msg, color="black") => {
+        if (color !== "red") {
+            add_message(msg, color);
+        }
+    })
+
+    // we'll send the message to the server by emitting a "send" event
+    async function send() {
+        let message = `${unescaped_username}: ` + $("#message").val();
+        $("#message").val("");
+
+        const encryptedOwnMsg = await NewEncryptMessage(message, public_key);
+        socket.emit("new_send", unescaped_username, encryptedOwnMsg, room_id);
+
+        for (const user in public_keys) {
+            if (unescaped_username != user) {
+                const receiver_public_key = new Uint8Array(public_keys[user].split(","));
+                const imported_key = await crypto.subtle.importKey(
+                    "spki", 
+                    receiver_public_key,
+                    {
+                        name: "RSA-OAEP",
+                        hash: { name: "SHA-256" },
+                    },
+                    true,
+                    ["encrypt"]
+                );
+                const encryptedMessage = await NewEncryptMessage(message, imported_key);
+                socket.emit("new_send", user, encryptedMessage, room_id);
+            }
+        }
+    }
+
+    // we emit a join room event to the server to join a room
+    async function join_room() {
+        return new Promise((resolve, reject) => {
+            const params = new URLSearchParams(window.location.search);
+
+            if (params.has("chatwith")) {
+                receiver = params.get("chatwith");
+            }
+
+            // pass in the receiver of our message to the server
+            // as well as the current user's username
+            socket.emit("join", receiver, (res) => {
+                // res is a string with the error message if the error occurs
+                // this is a pretty bad way of doing error handling, but watevs
+                if (typeof res != "number") {
+                    $("#input_box").hide();
+                    alert(res);
+                    window.location.href = '/friends'
+                    reject(new Error(res));
+                }
+
+                // set the room id variable to the room id returned by the server
+                room_id = res;
+
+                resolve(res);
+            });
+        });
+    }
+
+    // function when the user clicks on "Leave Room"
+    // emits a "leave" event, telling the server that we want to leave the room
+    function leave() {
+        socket.emit("leave", room_id);
+        $("#input_box").hide();
+        window.location.href = "/friends";
+    }
+
+    // function to add a message to the message box
+    // called when an incoming message has reached a client
+    function add_message(message, color) {
+        let box = $("#message_box");
+        let child = $(`<p id="msg" style="color:${color}; margin: 0px;"></p>`).text(message);
+        box.append(child);
+    }
+</script>
+{% endblock %}

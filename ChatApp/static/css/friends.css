@@ -1,0 +1,20 @@
+.requests {
+    padding: 20px; 
+    margin-top: 20px;  
+    border-bottom: 1px solid black;
+}
+
+.status {
+    padding: 2px 5px;
+    color: white;
+    border-radius: 5px;
+}
+
+.online {
+    background-color: green;
+}
+
+.offline {
+    background-color: red;
+}
+

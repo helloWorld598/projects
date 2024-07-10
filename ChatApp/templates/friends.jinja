@@ -1,0 +1,435 @@
+{% extends 'base.jinja' %}
+
+{% block css %}
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/friends.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<ul class="nav-bar">
+    <li class="active"><a href="/friends">Home</a></li>
+    <li><a href="/articles">Articles</a></li>
+    <li><a href="/publish">Publish</a></li>
+    {% if user.role == 'staff' %}
+        <li><a href="/panel">Control Panel</a></li> {# THIS IS WHERE PANEL WILL BE #}
+    {% endif %}
+    <li class="end-section"><a href="/logout">Logout</a></li>
+    <li class="no-hover">Friends</li>
+    {% if friends %}
+        {% for friend in friends %}
+            <li id="friend_{{ friend.username }}">
+                <a>{{ friend.username }}</a>
+                <span>{{ friend.role }}</span>
+                <span class="status offline" id="status_{{ friend.username }}">Offline</span>
+                <br>
+                <button onclick="window.location.href='/home?chatwith={{ friend.username }}'">Chat</button>
+                <button onclick="removeFriend('{{ friend.username }}', '{{ user.username }}')">Remove Friend</button>
+                <br>
+            </li>
+        {% endfor %}
+    {% endif %}
+    <li class="no-hover">Groups</li>
+    {% if group_chats %}
+        {% for group in group_chats %}
+            <li class="group-list" id="group_{{ group }}">
+                <a>{{ group }}</a>
+                <button onclick="window.location.href='/home?chatwith={{ group }}'">Chat</button>
+                <br>
+            </li>
+        {% endfor %}
+    {% endif %}
+</ul>
+
+<main>
+    <div class="header">
+        <div><li><strong>Username</strong>: {{ user.username }} </li> <li><strong>Role</strong>: {{ user.role }} </li></div>
+    </div>
+    
+    <div class="requests">
+        <h3>Send Friend Request</h3>
+        <form id="sendFriendRequestForm">
+            <label for="friendUsername">Username:</label>
+            <input type="text" id="friendUsername" name="friend" placeholder="Enter username...">
+            <button type="button" onclick="sendFriendRequest()">Send Request</button>
+        </form>
+
+        <form id="createGroupChatForm">
+            <label for="groupChatName">Name of Group Chat:</label>
+            <input type="text" id="groupName" name="groupName" placeholder="Enter Group Chat Name...">
+            <input type="text" id="groupUsers" name="groupUsers" placeholder="Enter usernames of members of group chat...">
+            <button type="button" onclick="createGroupChat()">Send Request</button>
+        </form>
+
+        <h3>Sent Requests</h3>
+        <ul id="sentRequestsList"></ul>
+
+        <h3>Requests</h3>
+        <ul id="receivedRequestsList">
+            {% if received_requests %}
+                {% for request in received_requests %}
+                    {% if request.status == -1 %}
+                    <li id="receivedRequest_{{ request.request_id }}">
+                        {% if request.chat_type == 0 %}
+                            {{ request.sender }}
+                        {% else %}
+                            {{ request.room }}
+                        {% endif %}
+                        {% if request.chat_type == 0 %}
+                            <form id="acceptForm_{{ request.request_id }}" method="POST" onsubmit="acceptRequest(event, '{{ request.sender }}', '{{ request.request_id }}')">
+                                <input type="submit" value="Accept">
+                            </form>
+                        {% else %}
+                            <form id="acceptForm_{{ request.request_id }}" method="POST" onsubmit="acceptRequestGroup(event, '{{ request.sender }}', '{{ request.request_id }}', '{{ request.room }}')">
+                                <input type="submit" value="Accept">
+                            </form>
+                        {% endif %}
+                        <form id="declineForm_{{ request.request_id }}" method="POST" onsubmit="declineRequest(event, '{{ request.sender }}', '{{ request.request_id }}')">
+                            <input type="submit" value="Decline">
+                        </form>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        </ul>
+    </div>
+</main>
+
+<script src="/static/js/libs/socket.io.min.js"></script>
+<script>
+    var socket = io(); // Initialize Socket.IO connection
+    
+    function acceptRequest(event, sender, requestId) {
+        event.preventDefault();
+        if (socket.connected) {
+            socket.emit('update_request', requestId, sender, '1');
+
+            var receivedRequest = document.getElementById(`receivedRequest_${requestId}`);
+            if (receivedRequest) {
+                receivedRequest.remove();
+            }
+
+            var listItem = document.createElement('li');
+            listItem.id = 'friend_' + sender;
+
+            var friend = document.createElement('a');
+            friend.textContent = sender;
+
+            var onlineStatus = document.createElement('span');
+            onlineStatus.textContent = 'Online'; 
+            onlineStatus.setAttribute('class', 'status online');
+            onlineStatus.id = 'status_' + sender;
+
+            var chatButton = document.createElement('button');
+            chatButton.onclick = function() {
+                window.location.href = '/home?chatwith=' + sender;
+            };
+            chatButton.textContent = 'Chat';
+
+            var removeButton = document.createElement('button');
+            removeButton.onclick = function() {
+                socket.emit('remove_friend', requestId);
+                listItem.remove();
+            };
+            removeButton.textContent = 'Remove Friend';
+
+            onlineStatus.style.marginLeft = "10px";
+            chatButton.style.marginLeft = "10px";
+            removeButton.style.marginLeft = "10px"; 
+
+            listItem.appendChild(friend);
+            listItem.appendChild(onlineStatus);
+            listItem.appendChild(chatButton);
+            listItem.appendChild(removeButton);
+
+            var friendsList = document.getElementById('friendsList');
+            friendsList.appendChild(listItem);
+        }
+    }
+
+    function acceptRequestGroup(event, sender, requestId, room) {
+        event.preventDefault();
+        if (socket.connected) {
+            socket.emit('update_request', requestId, sender, '1');
+
+            var receivedRequest = document.getElementById(`receivedRequest_${requestId}`);
+            if (receivedRequest) {
+                receivedRequest.remove();
+            }
+
+            var listItem = document.createElement('li');
+            listItem.id = 'group_' + room;
+
+            var friend = document.createElement('a');
+            friend.textContent = room;
+
+            var chatButton = document.createElement('button');
+            chatButton.onclick = function() {
+                window.location.href = '/home?chatwith=' + room;
+            };
+            chatButton.textContent = 'Chat';
+
+            chatButton.style.marginLeft = "10px";
+
+            listItem.appendChild(friend);
+            listItem.appendChild(chatButton);
+
+            var groupList = document.getElementById('groupsList');
+            groupList.appendChild(listItem);
+        }
+    }
+
+    function declineRequest(event, sender, requestId) {
+        event.preventDefault();
+        if (socket.connected) {
+            socket.emit('update_request', requestId, sender, '0');
+
+            var receivedRequest = document.getElementById(`receivedRequest_${requestId}`);
+            if (receivedRequest) {
+                receivedRequest.remove();
+            }
+        }
+    }
+
+    function sendFriendRequest() {
+        if (socket.connected) {
+            var friendUsername = document.getElementById('friendUsername').value;
+            socket.emit('request', friendUsername, (res) => {
+                if (res) {
+                    alert(res);
+                }
+            });
+        }
+    }
+
+    function removeFriend(friendUsername, user) {
+        const friendListItem = document.getElementById(`friend_${friendUsername}`);
+        if (friendListItem) {
+            friendListItem.remove();
+        }
+        socket.emit('get_request_id', friendUsername, user);
+
+    }
+
+    function createGroupChat() {
+        if (socket.connected) {
+            var groupChatName = document.getElementById('groupName').value;
+            var groupChatUsers = document.getElementById('groupUsers').value.split(",");
+            socket.emit('create_group', groupChatName, groupChatUsers, (res) => {
+                if (res) {
+                    alert(res);
+                }
+            });
+        }
+    }
+
+    socket.on('request_success', function(sender, name, chatType) {
+        if (chatType === 0) {
+            var sentRequestsList = document.getElementById('sentRequestsList');
+            var listItem = document.createElement('li');
+            listItem.id = `sentRequest_${name}`;
+            listItem.textContent = `${name}: pending request`;
+            sentRequestsList.appendChild(listItem);
+        } else {
+            var sentRequestsList = document.getElementById('sentRequestsList');
+            var listItem = document.createElement('li');
+            listItem.id = `sentRequest_${name}`;
+            listItem.textContent = `${name}: pending request`;
+            sentRequestsList.appendChild(listItem);
+        }
+    })
+
+    // Listen for the request ID from the server
+    socket.on('request_id', function(data) {
+        const requestId = data.request_id;
+        
+        socket.emit('remove_friend', requestId);
+    });
+
+    socket.on('new_request', function(sender, requestId, room_name, room_type) {
+        if (room_type === 0) {
+            var receivedRequestsList = document.getElementById('receivedRequestsList');
+            var listItem = document.createElement('li');
+            listItem.id = `receivedRequest_${requestId}`;
+            
+            var senderText = document.createTextNode(sender);
+
+            var acceptForm = document.createElement('form');
+            acceptForm.id = `acceptForm_${requestId}`;
+            acceptForm.method = 'POST';
+            acceptForm.addEventListener('submit', function(event) {
+                acceptRequest(event, sender, requestId);
+            });
+
+            var acceptInput = document.createElement('input');
+            acceptInput.type = 'submit';
+            acceptInput.value = 'Accept';
+            acceptForm.appendChild(acceptInput);
+            
+            var declineForm = document.createElement('form');
+            declineForm.id = `declineForm_${requestId}`;
+            declineForm.method = 'POST';
+            declineForm.addEventListener('submit', function(event) {
+                declineRequest(event, sender, requestId);
+            });
+
+            var declineInput = document.createElement('input');
+            declineInput.type = 'submit';
+            declineInput.value = 'Decline';
+            declineForm.appendChild(declineInput);
+
+            listItem.appendChild(senderText);
+            listItem.appendChild(acceptForm);
+            listItem.appendChild(declineForm);
+            
+            receivedRequestsList.appendChild(listItem);
+        } else if (room_type === 1) {
+            var receivedRequestsList = document.getElementById('receivedRequestsList');
+            var listItem = document.createElement('li');
+            listItem.id = `receivedRequest_${requestId}`;
+            
+            var senderText = document.createTextNode(room_name);
+
+            var acceptForm = document.createElement('form');
+            acceptForm.id = `acceptForm_${requestId}`;
+            acceptForm.method = 'POST';
+            acceptForm.addEventListener('submit', function(event) {
+                acceptRequestGroup(event, sender, requestId, room_name);
+            });
+
+            var acceptInput = document.createElement('input');
+            acceptInput.type = 'submit';
+            acceptInput.value = 'Accept';
+            acceptForm.appendChild(acceptInput);
+            
+            var declineForm = document.createElement('form');
+            declineForm.id = `declineForm_${requestId}`;
+            declineForm.method = 'POST';
+            declineForm.addEventListener('submit', function(event) {
+                declineRequest(event, sender, requestId);
+            });
+
+            var declineInput = document.createElement('input');
+            declineInput.type = 'submit';
+            declineInput.value = 'Decline';
+            declineForm.appendChild(declineInput);
+
+            listItem.appendChild(senderText);
+            listItem.appendChild(acceptForm);
+            listItem.appendChild(declineForm);
+            
+            receivedRequestsList.appendChild(listItem);
+        }
+    });
+
+    socket.on('updated_request', function(requestId, receiver, newStatus, chatType, roomName) {
+        if (chatType == 0) {
+            var listItem = document.getElementById(`receivedRequest_${requestId}`);
+            if (listItem) {
+                listItem.remove(); // Remove the request from received requests list
+            }
+            listItem = document.getElementById(`sentRequest_${receiver}`);
+            if (listItem) {
+                if (newStatus === '1') {
+                    listItem.remove();
+                    var listItem = document.createElement('li');
+                    listItem.id = 'friend_' + receiver;
+
+                    var friend = document.createElement('a');
+                    friend.textContent = receiver;
+
+                    var onlineStatus = document.createElement('span');
+                    onlineStatus.textContent = 'Online'; 
+                    onlineStatus.setAttribute('class', 'status online');
+                    onlineStatus.id = 'status_' + receiver;
+
+                    var chatButton = document.createElement('button');
+                    chatButton.onclick = function() {
+                        window.location.href = '/home?chatwith=' + receiver;
+                    };
+                    chatButton.textContent = 'Chat';
+
+                    var removeButton = document.createElement('button');
+                    removeButton.onclick = function() {
+                        socket.emit('remove_friend', requestId);
+                        listItem.remove();
+                    };
+                    removeButton.textContent = 'Remove Friend';
+
+                    onlineStatus.style.marginLeft = "10px";
+                    chatButton.style.marginLeft = "10px";
+                    removeButton.style.marginLeft = "10px"; 
+
+                    listItem.appendChild(friend);
+                    listItem.appendChild(onlineStatus);
+                    listItem.appendChild(chatButton);
+                    listItem.appendChild(removeButton);
+
+                    var friendsList = document.getElementById('friendsList');
+                    friendsList.appendChild(listItem);
+
+                } else if (newStatus === '0') {
+                    listItem.textContent = `${receiver}: friend request rejected`;
+                }
+            }
+        } else {
+            var listItem = document.getElementById(`receivedRequest_${requestId}`);
+            if (listItem) {
+                listItem.remove();
+            }
+            listItem = document.getElementById(`sentRequest_${roomName}`);
+            if (listItem) {
+                listItem.remove();
+            }
+            if (newStatus === '1') {
+                var listItem = document.createElement('li');
+                listItem.id = 'group_' + roomName;
+
+                var group = document.createElement('a');
+                group.textContent = roomName;
+
+                var chatButton = document.createElement('button');
+                chatButton.onclick = function() {
+                    window.location.href = '/home?chatwith=' + roomName;
+                };
+                chatButton.textContent = 'Chat';
+                chatButton.style.marginLeft = "10px";
+
+                listItem.appendChild(group);
+                listItem.appendChild(chatButton);
+
+                var groupList = document.getElementById('groupsList');
+                groupList.appendChild(listItem);
+            } else if (newStatus === '0') {
+                listItem.textContent = `${receiver}: group request rejected`;
+            }
+        }
+    });
+
+    socket.on('update_friends', function(affected_users) {
+        var obj1 = document.getElementById(`friend_${affected_users[0]}`);
+        var obj2 = document.getElementById(`friend_${affected_users[1]}`);
+
+        if (obj1 == null) {
+            obj2.remove();
+        } else {
+            obj1.remove();
+        }
+    });
+
+    socket.on('connected', function(online_users) {
+        document.querySelectorAll('.status').forEach(function(status) {
+            status.classList.replace('online', 'offline');
+            status.textContent = 'Offline';
+        });
+
+        online_users.forEach(function(user) {
+            var statusElement = document.getElementById('status_' + user);
+            if (statusElement) {
+                statusElement.classList.replace('offline', 'online');
+                statusElement.textContent = 'Online';
+            }
+        });
+    });
+</script>
+
+{% endblock %}

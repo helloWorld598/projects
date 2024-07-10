@@ -1,0 +1,38 @@
+.new-article {
+    display: flex;
+    justify-content: center;
+    background-color: whitesmoke;
+    border: 2px solid grey;
+    border-radius: 12px;
+    margin-top: 15px;
+    width: 300%;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 2%;
+}
+
+.new-article:hover {
+    text-decoration: none;
+    background-color: rgb(158, 155, 155);
+}
+
+.delete-button {
+    background-color: red;
+    width: 45%;
+    padding: 2%;
+    font-size: large;
+}
+
+.modify-button {
+    width: 45%;
+    padding: 2%;
+    font-size: large;
+}
+
+.modify-article {
+    width: 300%;
+}
+
+.unmute-button {
+    background-color: coral;
+}

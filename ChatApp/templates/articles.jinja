@@ -1,0 +1,118 @@
+{% extends 'base.jinja' %}
+
+{% block css %}
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/articles.css') }}">
+{% endblock %}
+
+
+{% block content %}
+<ul class="nav-bar">
+    <li><a href="/friends">Home</a></li>
+    <li class="active"><a href="/articles">Articles</a></li>
+    <li><a href="/publish">Publish</a></li>
+    {% if user.role == 'staff' %}
+        <li><a href="/panel">Control Panel</a></li> {# THIS IS WHERE PANEL WILL BE #}
+    {% endif %}
+    <li class="end-section"><a href="/logout">Logout</a></li>
+    <li class="no-hover">Friends</li>
+    {% if friends %}
+        {% for friend in friends %}
+            <li id="friend_{{ friend.username }}">
+                <a>{{ friend.username }}</a>
+                <span>{{ friend.role }}</span>
+                <span class="status offline" id="status_{{ friend.username }}">Offline</span>
+                <br>
+                <button onclick="window.location.href='/home?chatwith={{ friend.username }}'">Chat</button>
+                <button onclick="removeFriend('{{ friend.username }}', '{{ user.username }}')">Remove Friend</button>
+                <br>
+            </li>
+        {% endfor %}
+    {% endif %}
+    <li class="no-hover">Groups</li>
+    {% if group_chats %}
+        {% for group in group_chats %}
+            <li class="group-list" id="group_{{ group }}">
+                <a>{{ group }}</a>
+                <button onclick="window.location.href='/home?chatwith={{ group }}'">Chat</button>
+                <br>
+            </li>
+        {% endfor %}
+    {% endif %}
+</ul>
+
+<main>
+    <a href="/publish"> 
+    <div class="new-article"> <h2>Create new article</h2> </div> 
+    </a>
+
+    <h2>Published Articles</h2>
+
+    <div id="articleList">
+
+    {% if articles %}
+        {% for article in articles %}
+                <a href="/articles/view?article_id={{ article.article_id }}">
+                <li>
+                    <h2>{{ article.title }}</h2>
+                    <p><strong>author:</strong> {{ article.author }}</p>
+                    <p>{{ article.content }}</p>
+                </li>
+                </a>
+        {% endfor %}
+    {% endif %}
+
+    </div>
+</main>
+
+<script src="/static/js/libs/socket.io.min.js"></script>
+<script>
+    var socket = io();
+
+    socket.on('update_articles', function(articles) {
+        var articleList = document.getElementById('articleList');
+        var existingLink = document.querySelector('a');
+        var existingAWidth = existingLink ? existingLink.offsetWidth : 0;
+
+
+        while (articleList.firstChild) {
+            articleList.removeChild(articleList.firstChild);
+            console.log("bye");
+        }
+
+        articles.forEach(function(article) {
+            var wholeItem = document.createElement('a');
+            wholeItem.style.width = `${existingAWidth}px`; // Correct usage of template literals
+            wholeItem.href = `/articles/view?article_id=${article.article_id}`; // Correct
+
+            var listItem = document.createElement('li');
+
+            var title = document.createElement('h2');
+            console.log(article.title);
+            title.textContent = article.title;
+
+            var author = document.createElement('p');
+            var strong = document.createElement('strong');
+            strong.textContent = 'author:';
+            author.appendChild(strong);
+
+            var authorName = document.createTextNode(` ${article.author}`);
+            author.appendChild(authorName);
+
+            var content = document.createElement('p');
+            content.textContent = article.content;
+
+            listItem.appendChild(title);
+            listItem.appendChild(author);
+            listItem.appendChild(content);
+
+            wholeItem.appendChild(listItem);
+            wholeItem.style.marginBottom = '5px'; // Ensure unit "px" is a string
+            wholeItem.style.marginRight = '3px'; // Ensure unit "px" is a string
+
+            document.getElementById('articleList').appendChild(wholeItem);
+
+        });
+    })
+</script>
+
+{% endblock %}

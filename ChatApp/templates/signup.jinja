@@ -1,0 +1,154 @@
+<!-- 
+Sign up page, pretty much the same as login.
+-->
+{% extends 'base.jinja' %}
+
+{% block content %}
+    <div class="login-signup"> 
+        <h1>Sign Up</h1>
+        <p>Username</p>
+        <input id="username"/>
+        <p>Password</p>
+        <input id="password" type="password"/>
+        <p>What is your role at University</p>
+        <select id="role">
+            <option value="student">Student</option>
+            <option value="staff">Staff</option>
+        </select>
+        <p>What units do you study/teach</p>
+        <input id="units"/>
+        <br>
+        <br>
+        <button onclick="signup()">Sign up</button>
+    </div>
+
+    <script>
+         function isValidURL(string) {
+            if (string.length == 0) {
+                return false;
+            }
+            if (string[0] == "/") {
+                return true;
+            }
+            return false;
+        }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.keyCode === 13) {
+                signup();
+            }
+        });
+
+        async function genRSAKeyPair() {
+            const keyPair = await crypto.subtle.generateKey(
+                {
+                    name: "RSA-OAEP",
+                    modulusLength: 2048,
+                    publicExponent: new Uint8Array([1, 0, 1]),
+                    hash: { name: "SHA-256" },
+                },
+                true,
+                ["encrypt", "decrypt"]
+            );
+            return keyPair;
+        }
+
+        async function encryptRSAKey(key_pair, user_derived_key, iv) {
+            const public_key = await crypto.subtle.exportKey("spki", key_pair.publicKey);
+            const private_key = await crypto.subtle.exportKey("pkcs8", key_pair.privateKey);
+            const encrypted_key = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv: new TextEncoder().encode(iv) },
+                user_derived_key,
+                private_key
+            );
+            return [encrypted_key, public_key];
+        }
+
+        // this function is identical to login(), see login.jinja
+        async function signup() {
+            // generate a salt for key derived from user password
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            // the salt is sent to the server to be stored on database
+            // this ensures that every session the user generates the same key
+            // allowing them to decrypt past messages from any session
+            let loginURL = "{{ url_for('signup_user') }}";
+
+            let res = await axios.post(loginURL, {
+                username: $("#username").val(),
+                password: $("#password").val(),
+                role: $("#role").val(),
+                units: $("#units").val(),
+                salt: Array.from(salt)
+            });
+
+            if (!isValidURL(res.data)) {
+                alert(res.data);
+                return;
+            }
+
+            // obtain the master_key_string from server
+            const key_res = await axios.get("/key/master");
+            const master_key_res = key_res.data["key"];
+            const iv = key_res.data["iv"];
+            
+            // import server's master key
+            const master_server_key = await crypto.subtle.importKey(
+                'raw',
+                new TextEncoder().encode(master_key_res),
+                { name: 'AES-GCM' },
+                true,
+                ['encrypt', 'decrypt']
+            );
+
+            // imports the user's password for use by KDF
+            const key_material = await crypto.subtle.importKey(
+                "raw", 
+                new TextEncoder().encode($("#password").val()), 
+                { name: 'PBKDF2' }, 
+                false, 
+                ["deriveBits", "deriveKey"]
+            );
+            
+            // derive a key from the user's password
+            const derived_pass_key =  await window.crypto.subtle.deriveKey(
+                {
+                    name: "PBKDF2",
+                    salt: salt,
+                    iterations: 100000,
+                    hash: "SHA-256",
+                },
+                key_material,
+                { name: "AES-GCM", length: 256 },
+                true,
+                ["encrypt", "decrypt"],
+            );
+
+            const exported_key = await crypto.subtle.exportKey('raw', derived_pass_key);
+
+            // encrypt the user derived key using the server's master key 
+            // using the salt that each user has as the iv for encryption
+            const encrypted_key = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv: new TextEncoder().encode(iv) },
+                master_server_key,
+                exported_key
+            );
+
+            // store the user's encrypted key in the browser. storage will last as long as session
+            localStorage.setItem("key", JSON.stringify(Array.from(new Uint8Array(encrypted_key))));
+
+            const key_salt_res = await axios.get("/key/salt");
+            const salt_for_iv = Uint8Array.from(key_salt_res.data);
+            
+            // generate a RSA key pair to be stored on databased, with the private key encrypted by password derived key
+            const key_pair = await genRSAKeyPair();
+            const [private_key, public_key] = await encryptRSAKey(key_pair, derived_pass_key, salt_for_iv);
+
+            await axios.post("/key/pair/save", {
+                "public_key": Array.from(new Uint8Array(public_key)),
+                "private_key": Array.from(new Uint8Array(private_key))
+            });
+
+            window.open(res.data, "_self")
+        }
+    </script>
+{% endblock %}
