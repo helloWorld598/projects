@@ -8,7 +8,7 @@ To run this application, the compiled program can be found in the root directory
 
 ## ChatApp
 
-ChatApp is a full-stack CRUD application that enables all users in the server to send encrypted messages to one another in a chat room. The application was designed as part of a university assignment and it targets students and staff members of academic institutions. The backend was created using the Python Flask library while Jinja serves as the template engine for the frontend. The app generates keys and handles secure storage of the keys for each user to faciliate encrypted communications. The webserver also faciliates HTTPS. User information, such as hashed passwords, are stored in a Sqlite database.
+ChatApp is a full-stack CRUD application that enables all users in the server to send encrypted messages to one another in a chat room. The backend was created using the Python Flask library while Jinja serves as the template engine for the frontend. The app generates keys and handles secure storage of the keys for each user to faciliate encrypted communications. The webserver also faciliates HTTPS. User information, such as hashed passwords, are stored in a Sqlite database.
 
 To run the Chat application, start the server by running app.py in the root directory of ChatApp. Ensure that a directory named certs exists, containing the SSL certificate server_cert.crt and the private key to the cert called key.pem to enable HTTPS on the webserver.
 
